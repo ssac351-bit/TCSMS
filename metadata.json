@@ -1,5 +1,5 @@
 {
-  "name": "Tanzil Microcredit Software",
+  "name": "Tanzil Microcredit Software (TCSMS)",
   "description": "A clean interface for managing microcredit applications.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
