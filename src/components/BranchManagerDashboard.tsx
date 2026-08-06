@@ -230,25 +230,10 @@ export default function BranchManagerDashboard({ org, staff, onLogout, isSimulat
     return [];
   });
 
-  const handleCloseDay = () => {
-    console.log("handleCloseDay called. Current workingDay:", workingDay);
-    if (!isBM) {
-      setAlertMsg({
-        type: 'error',
-        text: 'দুঃখিত, শুধুমাত্র শাখা ব্যবস্থাপক ডে ক্লোজ করতে পারবেন।'
-      });
-      return;
-    }
-    if (!window.confirm(`${workingDay} এই দিনটি ক্লোজ করে পরবর্তী কর্মদিবসে যেতে চান?`)) return;
-    
-    // Add to closed days
-    const updatedClosedDays = [...closedDays, workingDay];
-    setClosedDays(updatedClosedDays);
-    localStorage.setItem(closedDaysKey, JSON.stringify(updatedClosedDays));
-    
-    // Move to next day (robust calculation skipping holidays)
-    const [y, m, d] = workingDay.split('-').map(Number);
-    const date = new Date(y, m - 1, d); 
+  const getCalculatedNextWorkingDay = (currentDayStr: string, holidayList: Holiday[] = []): string => {
+    if (!currentDayStr) return new Date().toISOString().split('T')[0];
+    const [y, m, d] = currentDayStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
     
     const checkIsHolidayLocal = (testDate: Date, list: Holiday[]): boolean => {
       if (!Array.isArray(list)) return false;
@@ -266,17 +251,37 @@ export default function BranchManagerDashboard({ org, staff, onLogout, isSimulat
       });
     };
 
-    // Increment date until we find a non-holiday day
     let safetyCounter = 0;
     while (safetyCounter < 365) {
       date.setDate(date.getDate() + 1);
-      if (!checkIsHolidayLocal(date, holidays)) {
+      if (!checkIsHolidayLocal(date, holidayList)) {
         break;
       }
       safetyCounter++;
     }
 
-    const nextDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const handleCloseDay = () => {
+    console.log("handleCloseDay called. Current workingDay:", workingDay);
+    if (!window.confirm(`${workingDay} এই দিনটি সফলভাবে ক্লোজ করে পরবর্তী কর্মদিবসে প্রবেশ করতে চান?`)) return;
+    
+    // Add to closed days across all branch & admin keys
+    const updatedClosedDays = Array.from(new Set([...closedDays, workingDay]));
+    setClosedDays(updatedClosedDays);
+    const branchId = staff.branchId || 'default';
+    const realClosedKey = `tanzil_closed_days_${org.id}_branch_${branchId}`;
+    const simClosedKey = `tanzil_closed_days_${org.id}_branch_${branchId}_simulated`;
+    const adminClosedKey = `tanzil_admin_closed_days_${org.id}`;
+    
+    localStorage.setItem(closedDaysKey, JSON.stringify(updatedClosedDays));
+    localStorage.setItem(realClosedKey, JSON.stringify(updatedClosedDays));
+    localStorage.setItem(simClosedKey, JSON.stringify(updatedClosedDays));
+    localStorage.setItem(adminClosedKey, JSON.stringify(updatedClosedDays));
+    
+    // Move to next day (robust calculation skipping holidays)
+    const nextDay = getCalculatedNextWorkingDay(workingDay, holidays);
 
     // Month-end auto-posting of Depreciation and LLPF
     const currentMonth = workingDay.split('-')[1];
@@ -452,16 +457,28 @@ export default function BranchManagerDashboard({ org, staff, onLogout, isSimulat
     }
 
     setWorkingDay(nextDay);
+    
+    // Save nextDay across all branch & admin storage keys so everyone sees the updated date
+    const realBranchKey = `tanzil_working_day_${org.id}_branch_${branchId}`;
+    const simBranchKey = `tanzil_working_day_${org.id}_branch_${branchId}_simulated`;
+    const adminKey = `tanzil_admin_working_day_${org.id}`;
+    const orgKey = `tanzil_working_day_${org.id}`;
+
     localStorage.setItem(workingDayKey, nextDay);
+    localStorage.setItem(realBranchKey, nextDay);
+    localStorage.setItem(simBranchKey, nextDay);
+    localStorage.setItem(adminKey, nextDay);
+    localStorage.setItem(orgKey, nextDay);
     
     // Clear user working date override
-    const managerOverrideKey = `tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`;
+    const managerOverrideKey = `tanzil_working_day_override_${org.id}_branch_${branchId}_user_${staff.id || staff.staffId || 'admin'}`;
     localStorage.removeItem(managerOverrideKey);
     
     setSelectedViewDate(nextDay);
+    window.dispatchEvent(new Event('storage'));
     
     console.log("Day closed, nextDay set to:", nextDay);
-    alert('কর্মদিবস সফলভাবে ক্লোজ করা হয়েছে।');
+    alert(`কর্মদিবস ${workingDay} সফলভাবে ক্লোজ করা হয়েছে!\nনতুন কর্মদিবস: ${nextDay}`);
   };
 
   const [isWorkingDayModalOpen, setIsWorkingDayModalOpen] = useState(false);
@@ -3181,48 +3198,44 @@ export default function BranchManagerDashboard({ org, staff, onLogout, isSimulat
 
               {/* Working Date Button */}
               <div className="flex items-center gap-1.5">
-                {isSimulated ? (
-                  <>
-                    <button 
-                      type="button"
-                      onClick={() => setIsWorkingDayModalOpen(true)}
-                      className={`flex items-center gap-1.5 font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                        localStorage.getItem(`tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`)
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          : 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300'
-                      }`}
-                      title={
-                        localStorage.getItem(`tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`)
-                          ? "আপনার ব্যক্তিগত সেশন তারিখ ওভাররাইড সক্রিয় আছে। মূল ব্রাঞ্চ তারিখ অপরিবর্তিত।"
-                          : "কর্মদিবস পরিবর্তন করতে বা ক্লোজ করতে এখানে ক্লিক করুন"
-                      }
-                    >
-                      <Clock size={12} className={localStorage.getItem(`tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`) ? "text-amber-400 animate-bounce" : "text-emerald-400 animate-pulse"} />
-                      <span>তারিখ:</span>
-                      <span className="font-mono font-black">{workingDay}</span>
-                      {localStorage.getItem(`tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`) && (
-                        <span className="text-[9px] bg-amber-500 text-slate-900 font-extrabold px-1 rounded-sm ml-1 select-none">সেশন</span>
-                      )}
-                    </button>
+                <button 
+                  type="button"
+                  onClick={() => setIsWorkingDayModalOpen(true)}
+                  className={`flex items-center gap-1.5 font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    localStorage.getItem(`tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`)
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      : 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300'
+                  }`}
+                  title="কর্মদিবস পরিবর্তন করতে বা ডে ক্লোজ করতে এখানে ক্লিক করুন"
+                >
+                  <Clock size={12} className={localStorage.getItem(`tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`) ? "text-amber-400 animate-bounce" : "text-emerald-400 animate-pulse"} />
+                  <span>তারিখ:</span>
+                  <span className="font-mono font-black">{workingDay}</span>
+                  {localStorage.getItem(`tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`) && (
+                    <span className="text-[9px] bg-amber-500 text-slate-900 font-extrabold px-1 rounded-sm ml-1 select-none">সেশন</span>
+                  )}
+                </button>
 
-                    {localStorage.getItem(`tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`) && (
-                      <button
-                        type="button"
-                        onClick={handleResetWorkingDay}
-                        className="flex items-center gap-1 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 font-extrabold px-2 py-1 rounded-lg text-[10px] cursor-pointer transition-colors"
-                        title="সেশন রিসেট করে মূল ব্রাঞ্চ তারিখে ফিরে যান"
-                      >
-                        রিসেট
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex items-center gap-1.5 bg-slate-800/60 border border-slate-700/50 px-2.5 py-1 rounded-lg text-slate-300">
-                    <Clock size={12} className="text-slate-400" />
-                    <span className="font-medium text-slate-400">তারিখ:</span>
-                    <span className="font-mono font-bold text-slate-200">{workingDay}</span>
-                  </div>
+                {localStorage.getItem(`tanzil_working_day_override_${org.id}_branch_${staff.branchId || 'default'}_user_${staff.id || staff.staffId || 'admin'}`) && (
+                  <button
+                    type="button"
+                    onClick={handleResetWorkingDay}
+                    className="flex items-center gap-1 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 font-extrabold px-2 py-1 rounded-lg text-[10px] cursor-pointer transition-colors"
+                    title="সেশন রিসেট করে মূল ব্রাঞ্চ তারিখে ফিরে যান"
+                  >
+                    রিসেট
+                  </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={handleCloseDay}
+                  className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black px-2.5 py-1 rounded-lg text-xs cursor-pointer shadow-xs transition-all active:scale-95 ml-1"
+                  title="আজকের দিন ক্লোজ করে পরবর্তী কর্মদিবসে যান"
+                >
+                  <Lock size={12} />
+                  <span>ডে ক্লোজ</span>
+                </button>
               </div>
             </div>
 
@@ -3332,13 +3345,20 @@ export default function BranchManagerDashboard({ org, staff, onLogout, isSimulat
                     <span>মেনুবার দেখান</span>
                   </button>
                 )}
-                <button 
-                  onClick={handleCloseDay}
-                  className="text-slate-550 font-semibold cursor-pointer hover:text-emerald-700 underline decoration-emerald-600 underline-offset-2 transition"
-                  title="ডে ক্লোজ করতে এখানে ক্লিক করুন"
-                >
-                  কার্যদিবস: {new Date(workingDay + 'T00:00:00').toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-700 font-bold">
+                    কার্যদিবস: {new Date(workingDay + 'T00:00:00').toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </span>
+                  <button 
+                    type="button"
+                    onClick={handleCloseDay}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-lg text-xs font-black shadow-xs transition duration-150 cursor-pointer"
+                    title="আজকের কর্মদিবস সমাপ্ত করে পরবর্তী কর্মদিবসে যান"
+                  >
+                    <Lock size={12} />
+                    <span>ডে ক্লোজ (Close Day)</span>
+                  </button>
+                </div>
                 
 
               </div>
@@ -9438,39 +9458,90 @@ export default function BranchManagerDashboard({ org, staff, onLogout, isSimulat
         </div>
       )}
 
-      {/* MODAL: Change Working Date (Admin only) */}
-      {isWorkingDayModalOpen && isSimulated && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 animate-in fade-in duration-100">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-150">
-            <h3 className="font-extrabold text-slate-800 text-sm mb-4">কর্মদিবস পরিবর্তন করুন</h3>
-            <form onSubmit={handleUpdateWorkingDay} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">নতুন তারিখ নির্বাচন করুন *</label>
-                <input 
-                  type="date" 
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold" 
-                  value={workingDayInput} 
-                  onChange={(e) => setWorkingDayInput(e.target.value)}
-                  required
-                />
+      {/* MODAL: Change Working Date & Day Close */}
+      {isWorkingDayModalOpen && (() => {
+        const autoNextDay = getCalculatedNextWorkingDay(workingDay, holidays);
+        const currentBnDate = new Date(workingDay + 'T00:00:00').toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const nextBnDate = new Date(autoNextDay + 'T00:00:00').toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 animate-in fade-in duration-100">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-150 space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                  <Clock size={18} className="text-emerald-600" />
+                  <span>কর্মদিবস ব্যবস্থাপনা (Working Day Management)</span>
+                </h3>
+                <button onClick={() => setIsWorkingDayModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+                  <X size={18} />
+                </button>
               </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setIsWorkingDayModalOpen(false)} className="flex-1 py-2 bg-slate-100 rounded-xl text-xs font-bold">বাতিল</button>
-                <button type="submit" className="flex-1 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">পরিবর্তন করুন</button>
-              </div>
-              {isSimulated && (
+
+              {/* Automatic Day Close Card (Primary Feature) */}
+              <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-2 text-emerald-800 font-extrabold text-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>স্বয়ংক্রিয় ডে ক্লোজ ও স্থানান্তর</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-100">
+                    <p className="text-[10px] font-bold text-slate-500">বর্তমান কর্মদিবস:</p>
+                    <p className="font-mono font-black text-slate-800 text-xs mt-0.5">{workingDay}</p>
+                    <p className="text-[10px] text-slate-500 font-medium">{currentBnDate.split(',')[0]}</p>
+                  </div>
+                  <div className="bg-emerald-600/10 p-2.5 rounded-xl border border-emerald-300/50">
+                    <p className="text-[10px] font-bold text-emerald-700">পরবর্তী কর্মদিবস:</p>
+                    <p className="font-mono font-black text-emerald-900 text-xs mt-0.5">{autoNextDay}</p>
+                    <p className="text-[10px] text-emerald-700 font-medium">{nextBnDate.split(',')[0]}</p>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  * ঘোষিত ছুটি ও সাপ্তাহিক বন্ধের দিনগুলো স্বয়ংক্রিয়ভাবে এড়িয়ে পরবর্তী সঠিক কর্মদিবস হিসাব করা হয়েছে।
+                </p>
+
                 <button 
                   type="button" 
                   onClick={() => { setIsWorkingDayModalOpen(false); handleCloseDay(); }}
-                  className="w-full py-2 bg-rose-600 text-white rounded-xl text-xs font-bold"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition duration-150 cursor-pointer"
                 >
-                  দিনটি ক্লোজ করুন (Close Day)
+                  <Lock size={15} />
+                  <span>ডে ক্লোজ করে স্বয়ংক্রিয়ভাবে স্থানান্তর করুন ({autoNextDay})</span>
                 </button>
-              )}
-            </form>
+              </div>
+
+              {/* Manual Date Override (Secondary Feature) */}
+              <div className="pt-2 border-t border-slate-100">
+                <details className="group">
+                  <summary className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer flex items-center justify-between py-1">
+                    <span>বিশেষ প্রয়োজনে ম্যানুয়ালি তারিখ নির্বাচন করুন (Manual Override)</span>
+                    <span className="text-[10px] text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  
+                  <form onSubmit={handleUpdateWorkingDay} className="mt-3 space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">কাস্টম তারিখ নির্বাচন করুন</label>
+                      <input 
+                        type="date" 
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none" 
+                        value={workingDayInput} 
+                        onChange={(e) => setWorkingDayInput(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setIsWorkingDayModalOpen(false)} className="flex-1 py-1.5 bg-slate-200 hover:bg-slate-300 rounded-xl text-xs font-bold text-slate-700 cursor-pointer">বাতিল</button>
+                      <button type="submit" className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer transition">তারিখ সেভ করুন</button>
+                    </div>
+                  </form>
+                </details>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL: Declare New Holiday */}
       {isHolidayModalOpen && (

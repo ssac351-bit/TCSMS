@@ -412,6 +412,39 @@ export default function OrgAdminDashboard({ org, onLogout, onUpdateOrg }: OrgAdm
   const [isWorkingDayModalOpen, setIsWorkingDayModalOpen] = useState(false);
   const [workingDayInput, setWorkingDayInput] = useState(workingDay);
 
+  const getCalculatedNextWorkingDay = (currentDayStr: string, holidayList: Holiday[] = []): string => {
+    if (!currentDayStr) return new Date().toISOString().split('T')[0];
+    const [y, m, d] = currentDayStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    
+    const checkIsHolidayLocal = (testDate: Date, list: Holiday[]): boolean => {
+      if (!Array.isArray(list)) return false;
+      const dateStr = `${testDate.getFullYear()}-${String(testDate.getMonth() + 1).padStart(2, '0')}-${String(testDate.getDate()).padStart(2, '0')}`;
+      const dayNames = ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'];
+      const bDay = dayNames[testDate.getDay()];
+      
+      return list.some(h => {
+        if (h.type === 'direct') {
+          return h.date === dateStr;
+        } else if (h.type === 'general') {
+          return h.dayOfWeek === bDay;
+        }
+        return false;
+      });
+    };
+
+    let safetyCounter = 0;
+    while (safetyCounter < 365) {
+      date.setDate(date.getDate() + 1);
+      if (!checkIsHolidayLocal(date, holidayList)) {
+        break;
+      }
+      safetyCounter++;
+    }
+
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   // Topbar Action Change Password dialogs
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [oldPasswordVal, setOldPasswordVal] = useState('');
@@ -4714,60 +4747,128 @@ export default function OrgAdminDashboard({ org, onLogout, onUpdateOrg }: OrgAdm
       {/* --- POPUPS & SECONDARY DIALOG MODALS --- */}
       
       {/* MODAL: Working Day Modification */}
-      {isWorkingDayModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 animate-in fade-in duration-100">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-150">
-            <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200/80 flex justify-between items-center">
-              <h3 className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-1.5">
-                <Clock size={16} className="text-blue-600" /> কর্মদিবস নির্ধারণ (Change Working Day)
-              </h3>
-              <button onClick={() => setIsWorkingDayModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-0.5">
-                <X size={18} />
-              </button>
-            </div>
-            
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (workingDayInput) {
-                setWorkingDay(workingDayInput);
-                localStorage.setItem(`tanzil_admin_working_day_${org.id}`, workingDayInput);
-                setIsWorkingDayModalOpen(false);
-                alert('কর্মদিবস সফলভাবে পরিবর্তন করা হয়েছে!');
-              }
-            }} className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">নতুন কর্মদিবস নির্বাচন করুন</label>
-                <input 
-                  type="date" 
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none" 
-                  value={workingDayInput} 
-                  onChange={(e) => setWorkingDayInput(e.target.value)}
-                  required
-                />
-                <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                  * তানজিল সিস্টেমে এই তারিখটি আজকের অফিসিয়াল ট্রানজেকশন ডে হিসেবে গৃহীত হবে।
-                </p>
+      {isWorkingDayModalOpen && (() => {
+        const autoNextDay = getCalculatedNextWorkingDay(workingDay, holidaysList);
+        const currentBnDate = new Date(workingDay + 'T00:00:00').toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const nextBnDate = new Date(autoNextDay + 'T00:00:00').toLocaleDateString('bn-BD', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 animate-in fade-in duration-100">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-150 p-6 space-y-4">
+              <div className="pb-2 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                  <Clock size={18} className="text-blue-600" />
+                  <span>কর্মদিবস ব্যবস্থাপনা (Working Day Management)</span>
+                </h3>
+                <button onClick={() => setIsWorkingDayModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer">
+                  <X size={18} />
+                </button>
               </div>
 
-              <div className="flex gap-2.5 pt-2">
-                <button 
-                  type="button" 
-                  onClick={() => setIsWorkingDayModalOpen(false)}
-                  className="flex-1 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200"
+              {/* Automatic Next Day Transfer Section (Primary) */}
+              <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center gap-2 text-blue-800 font-extrabold text-xs">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                  <span>স্বয়ংক্রিয় ডে ক্লোজ ও স্থানান্তর</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-blue-100">
+                    <p className="text-[10px] font-bold text-slate-500">বর্তমান কর্মদিবস:</p>
+                    <p className="font-mono font-black text-slate-800 text-xs mt-0.5">{workingDay}</p>
+                    <p className="text-[10px] text-slate-500 font-medium">{currentBnDate.split(',')[0]}</p>
+                  </div>
+                  <div className="bg-blue-600/10 p-2.5 rounded-xl border border-blue-300/50">
+                    <p className="text-[10px] font-bold text-blue-700">পরবর্তী কর্মদিবস:</p>
+                    <p className="font-mono font-black text-blue-900 text-xs mt-0.5">{autoNextDay}</p>
+                    <p className="text-[10px] text-blue-700 font-medium">{nextBnDate.split(',')[0]}</p>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  * ঘোষিত ছুটি ও সাপ্তাহিক বন্ধের দিনগুলো স্বয়ংক্রিয়ভাবে এড়িয়ে পরবর্তী সঠিক কর্মদিবস হিসাব করা হয়েছে।
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm(`${workingDay} এই দিনটি ক্লোজ করে পরবর্তী কর্মদিবস ${autoNextDay}-এ স্থানান্তর করতে চান?`)) return;
+
+                    setWorkingDay(autoNextDay);
+                    setWorkingDayInput(autoNextDay);
+                    localStorage.setItem(`tanzil_admin_working_day_${org.id}`, autoNextDay);
+                    localStorage.setItem(`tanzil_working_day_${org.id}`, autoNextDay);
+
+                    const branches = JSON.parse(localStorage.getItem(`tanzil_branches_${org.id}`) || '[]');
+                    branches.forEach((b: any) => {
+                      localStorage.setItem(`tanzil_working_day_${org.id}_branch_${b.id}`, autoNextDay);
+                      localStorage.setItem(`tanzil_working_day_${org.id}_branch_${b.id}_simulated`, autoNextDay);
+                    });
+
+                    window.dispatchEvent(new Event('storage'));
+                    setIsWorkingDayModalOpen(false);
+                    alert(`অফিসিয়াল কর্মদিবস ${workingDay} সফলভাবে ক্লোজ করে পরবর্তী কর্মদিবস ${autoNextDay}-এ স্থানান্তর করা হয়েছে!`);
+                  }}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl transition cursor-pointer flex items-center justify-center gap-2 shadow-sm"
                 >
-                  বাতিল
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition"
-                >
-                  পরিবর্তন করুন
+                  <Clock size={15} />
+                  <span>ডে ক্লোজ করে স্বয়ংক্রিয়ভাবে স্থানান্তর করুন ({autoNextDay})</span>
                 </button>
               </div>
-            </form>
+
+              {/* Manual Date Input Section (Secondary) */}
+              <div className="pt-2 border-t border-slate-100">
+                <details className="group">
+                  <summary className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer flex items-center justify-between py-1">
+                    <span>বিশেষ প্রয়োজনে ম্যানুয়ালি তারিখ পরিবর্তন করুন (Manual Override)</span>
+                    <span className="text-[10px] text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (workingDayInput) {
+                      setWorkingDay(workingDayInput);
+                      localStorage.setItem(`tanzil_admin_working_day_${org.id}`, workingDayInput);
+                      localStorage.setItem(`tanzil_working_day_${org.id}`, workingDayInput);
+                      
+                      // Sync to all branches
+                      const branches = JSON.parse(localStorage.getItem(`tanzil_branches_${org.id}`) || '[]');
+                      branches.forEach((b: any) => {
+                        localStorage.setItem(`tanzil_working_day_${org.id}_branch_${b.id}`, workingDayInput);
+                        localStorage.setItem(`tanzil_working_day_${org.id}_branch_${b.id}_simulated`, workingDayInput);
+                      });
+
+                      window.dispatchEvent(new Event('storage'));
+                      setIsWorkingDayModalOpen(false);
+                      alert('কর্মদিবস সফলভাবে পরিবর্তন করা হয়েছে এবং সকল শাখায় আপডেট করা হয়েছে!');
+                    }
+                  }} className="mt-3 space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">কাস্টম তারিখ নির্বাচন করুন</label>
+                      <input 
+                        type="date" 
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none" 
+                        value={workingDayInput} 
+                        onChange={(e) => setWorkingDayInput(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setIsWorkingDayModalOpen(false)} className="flex-1 py-1.5 text-xs font-bold text-slate-600 bg-slate-200 rounded-xl hover:bg-slate-300 cursor-pointer">
+                        বাতিল
+                      </button>
+                      <button type="submit" className="flex-1 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition cursor-pointer">
+                        পরিবর্তন করুন
+                      </button>
+                    </div>
+                  </form>
+                </details>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL: Change Admin Password */}
       {isChangePasswordModalOpen && (
