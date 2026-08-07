@@ -1,17 +1,6 @@
 const CACHE_NAME = 'tcsms-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon.png'
-];
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(urlsToCache);
-    })
-  );
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
@@ -31,7 +20,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network first, falling back to cache
+  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) return;
   event.respondWith(
     fetch(event.request).catch(() => {
       return caches.match(event.request);
