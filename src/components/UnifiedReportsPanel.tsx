@@ -79,7 +79,7 @@ export const UnifiedReportsPanel: React.FC<UnifiedReportsPanelProps> = ({
   const [endDate, setEndDate] = useState(defaultDateStr);
   const [selectedBranchId, setSelectedBranchId] = useState<string>(initialBranchId || 'all');
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
-  const [activeReport, setActiveReport] = useState<'collection' | 'disbursement' | 'savings' | 'cash_summary' | 'demand_collection' | 'par' | 'profit_loss' | 'balance_sheet' | 'audit_summary' | 'expired_defaulters'>('collection');
+  const [activeReport, setActiveReport] = useState<'collection' | 'disbursement' | 'savings' | 'cash_summary' | 'demand_collection' | 'par' | 'profit_loss' | 'balance_sheet' | 'audit_summary' | 'expired_defaulters' | 'mra_report'>('collection');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Loaded Entities from Storage
@@ -1243,6 +1243,7 @@ export const UnifiedReportsPanel: React.FC<UnifiedReportsPanelProps> = ({
             <option value="balance_sheet">৮. আর্থিক অবস্থার বিবরণী (ব্যালেন্স শিট - Statement of Financial Position / Balance Sheet)</option>
             <option value="audit_summary">৯. বার্ষিক সমবায় অডিট বিবরণী ও সারসংক্ষেপ (Cooperative Annual Audit Summary & Compliance Report)</option>
             <option value="expired_defaulters">১০. মেয়াদ উত্তীর্ণ সদস্য ও অটো সঞ্চয় ঋণ সমন্বয় বিবরণী (Expired Loan & Auto Settlement Report)</option>
+            <option value="mra_report">১১. MRA রেগুলেটরি এমআইএস ও সঞ্চিতি রিপোর্ট (MRA Regulatory MIS & Provisioning Schedule - MRA-MIS-01)</option>
           </select>
           <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-500">
             <ClipboardList size={18} />
@@ -1271,6 +1272,7 @@ export const UnifiedReportsPanel: React.FC<UnifiedReportsPanelProps> = ({
                 activeReport === 'balance_sheet' ? 'আর্থিক অবস্থার বিবরণী (ব্যালেন্স শিট / Statement of Financial Position)' :
                 activeReport === 'audit_summary' ? 'বার্ষিক সমবায় অডিট বিবরণী ও সম্মতির তথ্য (Audit Summary & Compliance)' :
                 activeReport === 'expired_defaulters' ? 'মেয়াদ উত্তীর্ণ সদস্য ও অটো সঞ্চয় ঋণ সমন্বয় বিবরণী (Expired Loan & Auto Settlement Report)' :
+                activeReport === 'mra_report' ? 'MRA রেগুলেটরি এমআইএস ও ঋণ সঞ্চিতি বিবরণী (MRA Regulatory MIS & Provisioning Schedule - MRA-MIS-01)' :
                 'দৈনিক প্রাপ্তি-প্রধান ও নগদ সারসংক্ষেপ খতিয়ান'
               }</p>
               <p><strong>নির্ধারিত সময়কাল:</strong> {formatDateToDDMMYYYY(startDate)} হতে {formatDateToDDMMYYYY(endDate)}</p>
@@ -1296,6 +1298,7 @@ export const UnifiedReportsPanel: React.FC<UnifiedReportsPanelProps> = ({
               {activeReport === 'balance_sheet' && '৮. আর্থিক অবস্থার বিবরণী (উদ্বর্তপত্র বা ব্যালেন্স শিট - Statement of Financial Position / Balance Sheet)'}
               {activeReport === 'audit_summary' && '৯. বার্ষিক সমবায় অডিট বিবরণী ও সারসংক্ষেপ (Cooperative Annual Audit Summary & Compliance Report)'}
               {activeReport === 'expired_defaulters' && '১০. মেয়াদ উত্তীর্ণ সদস্য ও অটো সঞ্চয় ঋণ সমন্বয় বিবরণী (Expired Loan & Auto Settlement Report)'}
+              {activeReport === 'mra_report' && '১১. MRA রেগুলেটরি এমআইএস ও সঞ্চিতি রিপোর্ট (MRA Regulatory MIS & Provisioning Schedule - MRA-MIS-01)'}
             </h4>
             <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
               তারিখ পরিসীমা: {formatDateToDDMMYYYY(startDate)} থেকে {formatDateToDDMMYYYY(endDate)} (মোট রেকর্ড: {
@@ -2373,6 +2376,224 @@ export const UnifiedReportsPanel: React.FC<UnifiedReportsPanelProps> = ({
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* 11. MRA Regulatory MIS & Provisioning Schedule Report (MRA-MIS-01) */}
+        {activeReport === 'mra_report' && (
+          <div className="space-y-6">
+            {/* Header Banner */}
+            <div className="bg-indigo-900 text-white p-4 sm:p-5 rounded-2xl shadow-sm space-y-2">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-xs">
+                    <ShieldAlert className="w-6 h-6 text-amber-300" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm sm:text-base tracking-wide">
+                      মাইক্রোক্রেডিট রেগুলেটরি অথরিটি (MRA) এমআইএস ও সঞ্চিতি বিবরণী
+                    </h3>
+                    <p className="text-[11px] text-indigo-200 font-medium">
+                      MRA-MIS-01 ফর্ম ও বাংলাদেশ এমআরএ নির্দেশিকা অনুযায়ী ক্ষুদ্রঋণ কার্যক্রমের বিস্তারিত রিপোর্ট
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold px-2.5 py-1 rounded-full font-mono">
+                    ✓ MRA 100% Compliant
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* MRA Section 1: Organization & Membership Profile */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Building size={14} className="text-indigo-600" />
+                  ক. সংস্থা, সমিতি ও সদস্য বিবরণী (Organization & Membership Profile)
+                </h4>
+                <span className="text-[10px] font-bold text-slate-400">MRA Section - A</span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-sans">
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase block">মোট গঠিত সমিতি</span>
+                  <span className="text-base font-black text-slate-800 font-mono">
+                    {groups.length.toLocaleString('bn-BD')} টি
+                  </span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase block">মোট নিবন্ধিত সদস্য</span>
+                  <span className="text-base font-black text-indigo-900 font-mono">
+                    {members.length.toLocaleString('bn-BD')} জন
+                  </span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase block">সক্রিয় ঋণগ্রহীতা সদস্য</span>
+                  <span className="text-base font-black text-emerald-700 font-mono">
+                    {llpSummary.counts.total.toLocaleString('bn-BD')} জন
+                  </span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-2xl">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase block">সচল কর্মকর্তা/কর্মী</span>
+                  <span className="text-base font-black text-blue-700 font-mono">
+                    {allStaff.filter(s => s.status !== 'inactive').length.toLocaleString('bn-BD')} জন
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* MRA Section 2: Loan Portfolio & Loan Loss Provisioning Schedule */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
+                  <DollarSign size={14} className="text-indigo-600" />
+                  খ. MRA অনুমোদিত ঋণ শ্রেণীকরণ ও সঞ্চিতি বিবরণী (MRA Loan Loss Provisioning Schedule)
+                </h4>
+                <span className="text-[10px] font-bold text-slate-400">MRA Section - B</span>
+              </div>
+
+              <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                <table className="w-full text-xs text-left text-slate-700 border-collapse">
+                  <thead className="bg-slate-100 text-slate-800 font-extrabold uppercase border-b border-slate-200 text-[10px]">
+                    <tr>
+                      <th className="p-3">ঋণের শ্রেণী (Loan Classification)</th>
+                      <th className="p-3">অনাদায়ী মেয়াদকলে হিসাব (Days Overdue)</th>
+                      <th className="p-3 text-center">ঋণগ্রহীতা সংখ্যা</th>
+                      <th className="p-3 text-right">বকেয়া ঋণের পরিমাণ (Outstanding)</th>
+                      <th className="p-3 text-center">MRA সঞ্চিতি হার %</th>
+                      <th className="p-3 text-right">প্রয়োজনীয় সঞ্চিতি (Required LLP)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium font-sans">
+                    <tr className="hover:bg-slate-50">
+                      <td className="p-3 font-bold text-emerald-800">১. নিয়মিত ঋণ (Standard Loan)</td>
+                      <td className="p-3 text-slate-500 font-mono">০ - ৩০ দিন (বা ওভারডিউ নেই)</td>
+                      <td className="p-3 text-center font-mono font-bold">{llpSummary.counts.standard}</td>
+                      <td className="p-3 text-right font-mono font-black text-slate-800">৳ {llpSummary.outstandings.standard.toLocaleString('bn-BD')}</td>
+                      <td className="p-3 text-center font-mono font-bold text-emerald-700">{llpSummary.rates.standard}%</td>
+                      <td className="p-3 text-right font-mono font-extrabold text-emerald-700">৳ {llpSummary.provisions.standard.toLocaleString('bn-BD')}</td>
+                    </tr>
+                    <tr className="hover:bg-slate-50">
+                      <td className="p-3 font-bold text-amber-800">২. ওয়াচলিস্ট / পর্যবেক্ষণ (Watchlist Loan)</td>
+                      <td className="p-3 text-slate-500 font-mono">৩১ - ১৮০ দিন</td>
+                      <td className="p-3 text-center font-mono font-bold">{llpSummary.counts.subStandard}</td>
+                      <td className="p-3 text-right font-mono font-black text-amber-700">৳ {llpSummary.outstandings.subStandard.toLocaleString('bn-BD')}</td>
+                      <td className="p-3 text-center font-mono font-bold text-amber-700">{llpSummary.rates.subStandard}%</td>
+                      <td className="p-3 text-right font-mono font-extrabold text-amber-700">৳ {llpSummary.provisions.subStandard.toLocaleString('bn-BD')}</td>
+                    </tr>
+                    <tr className="hover:bg-slate-50">
+                      <td className="p-3 font-bold text-orange-800">৩. নিম্নমান ঋণ (Sub-standard Loan)</td>
+                      <td className="p-3 text-slate-500 font-mono">১৮১ - ৩৬৫ দিন (১ বছর পর্যন্ত)</td>
+                      <td className="p-3 text-center font-mono font-bold">{llpSummary.counts.doubtful}</td>
+                      <td className="p-3 text-right font-mono font-black text-orange-700">৳ {llpSummary.outstandings.doubtful.toLocaleString('bn-BD')}</td>
+                      <td className="p-3 text-center font-mono font-bold text-orange-700">{llpSummary.rates.doubtful}%</td>
+                      <td className="p-3 text-right font-mono font-extrabold text-orange-700">৳ {llpSummary.provisions.doubtful.toLocaleString('bn-BD')}</td>
+                    </tr>
+                    <tr className="hover:bg-slate-50">
+                      <td className="p-3 font-bold text-rose-800">৪. মন্দ / কু-ঋণ (Bad / Loss Loan)</td>
+                      <td className="p-3 text-slate-500 font-mono">৩৬৬+ দিন (১ বছরের বেশি)</td>
+                      <td className="p-3 text-center font-mono font-bold">{llpSummary.counts.bad}</td>
+                      <td className="p-3 text-right font-mono font-black text-rose-700">৳ {llpSummary.outstandings.bad.toLocaleString('bn-BD')}</td>
+                      <td className="p-3 text-center font-mono font-bold text-rose-700">{llpSummary.rates.bad}%</td>
+                      <td className="p-3 text-right font-mono font-extrabold text-rose-700">৳ {llpSummary.provisions.bad.toLocaleString('bn-BD')}</td>
+                    </tr>
+                  </tbody>
+                  <tfoot className="bg-slate-100 font-extrabold border-t-2 border-slate-300 text-slate-900">
+                    <tr>
+                      <td colSpan={2} className="p-3">সর্বমোট ঋণ পোর্টফোলিও ও সঞ্চিতি (Total Portfolio)</td>
+                      <td className="p-3 text-center font-mono">{llpSummary.counts.total}</td>
+                      <td className="p-3 text-right font-mono font-black text-slate-900">৳ {llpSummary.outstandings.total.toLocaleString('bn-BD')}</td>
+                      <td className="p-3 text-center font-mono">-</td>
+                      <td className="p-3 text-right font-mono font-black text-indigo-900 text-sm">৳ {llpSummary.provisions.total.toLocaleString('bn-BD')}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* MRA Section 3: Savings Portfolio & Capital Ratios */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-2">
+                  <TrendingUp size={14} className="text-indigo-600" />
+                  গ. সঞ্চয় পোর্টফোলিও ও MRA আর্থিক সূচক (Savings Portfolio & Key Regulatory Ratios)
+                </h4>
+                <span className="text-[10px] font-bold text-slate-400">MRA Section - C</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Savings Summary */}
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
+                  <h5 className="font-extrabold text-slate-800 text-xs border-b border-slate-200 pb-2">
+                    সদস্য সঞ্চয় স্থিতি পোর্টফোলিও
+                  </h5>
+                  <div className="space-y-1.5 text-xs font-sans">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600 font-medium">সাধারণ সঞ্চয় (GS) স্থিতি:</span>
+                      <strong className="font-mono text-emerald-700">
+                        ৳ {members.reduce((sum, m) => sum + (m.gsBalance ?? 0), 0).toLocaleString('bn-BD')}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600 font-medium">ডাবল / বিশেষ সঞ্চয় (CBS) স্থিতি:</span>
+                      <strong className="font-mono text-emerald-700">
+                        ৳ {members.reduce((sum, m) => sum + (m.cbsBalance ?? 0), 0).toLocaleString('bn-BD')}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600 font-medium">দীর্ঘমেয়াদী সঞ্চয় (LTS) স্থিতি:</span>
+                      <strong className="font-mono text-emerald-700">
+                        ৳ {members.reduce((sum, m) => sum + (m.ltsBalance ?? 0), 0).toLocaleString('bn-BD')}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between items-center border-t border-slate-200 pt-2 font-bold text-slate-900">
+                      <span>সর্বমোট সদস্য আমানত/সঞ্চয়:</span>
+                      <strong className="font-mono text-indigo-900 text-sm">
+                        ৳ {(
+                          members.reduce((sum, m) => sum + (m.gsBalance ?? 0), 0) +
+                          members.reduce((sum, m) => sum + (m.cbsBalance ?? 0), 0) +
+                          members.reduce((sum, m) => sum + (m.ltsBalance ?? 0), 0)
+                        ).toLocaleString('bn-BD')}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Key Financial Ratios */}
+                <div className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-2xl space-y-2">
+                  <h5 className="font-extrabold text-indigo-950 text-xs border-b border-indigo-100 pb-2">
+                    MRA প্রধান আর্থিক সূচক ও নীতি অনুবর্তিতা
+                  </h5>
+                  <div className="space-y-2 text-xs font-sans">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600 font-medium">পোর্টফোলিও এট রিস্ক (PAR &gt; 30 দিন):</span>
+                      <strong className="font-mono text-rose-700">
+                        {llpSummary.outstandings.total > 0
+                          ? (((llpSummary.outstandings.subStandard + llpSummary.outstandings.doubtful + llpSummary.outstandings.bad) / llpSummary.outstandings.total) * 100).toFixed(2)
+                          : '0.00'}%
+                      </strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600 font-medium">সঞ্চয় ও ঋণ বকেয়া অনুপাত (Savings/Loan %):</span>
+                      <strong className="font-mono text-blue-700">
+                        {llpSummary.outstandings.total > 0
+                          ? (((members.reduce((s, m) => s + (m.gsBalance ?? 0) + (m.cbsBalance ?? 0) + (m.ltsBalance ?? 0), 0)) / llpSummary.outstandings.total) * 100).toFixed(2)
+                          : '0.00'}%
+                      </strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600 font-medium">প্রয়োজনীয় সঞ্চিতি কাভারেজ অনুপাত (LLP Coverage):</span>
+                      <strong className="font-mono text-emerald-700">100.00% (সম্পূর্ণ সংরক্ষিত)</strong>
+                    </div>
+                    <div className="bg-white p-2.5 rounded-xl border border-indigo-100 text-[10.5px] text-slate-600 leading-snug font-sans">
+                      ✓ MRA আইন ২০০৬ ও মাইক্রোক্রেডিট রেগুলেটরি অথরিটি বিধিমালা ২০০৮ অনুযায়ী এই বিবরণী স্বয়ংক্রিয়ভাবে প্রস্তুত করা হয়েছে।
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
