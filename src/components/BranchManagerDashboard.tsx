@@ -1905,11 +1905,11 @@ export default function BranchManagerDashboard({ org, staff, onLogout, isSimulat
     setGroupMembers(updatedMembersList);
     
     // Find the updated member profile to sync specific ledger account list balances
-    const updatedMember = updatedMembersList.find(m => m.memberId === txDetails.memberId);
+    const updatedMember = updatedMembersList.find(m => m.memberId === txDetails.memberId || m.id === txDetails.memberId);
     if (updatedMember) {
       // 1. Sync active General Savings (GS) account balance
       setSavingsAccounts((prev) => prev.map((acc) => {
-        if ((acc.memberId === updatedMember.id || acc.memberCode === updatedMember.memberId) && acc.type === 'GS') {
+        if ((acc.memberId === updatedMember.id || acc.memberId === updatedMember.memberId || acc.memberCode === updatedMember.memberId) && acc.type === 'GS') {
           return { ...acc, balance: updatedMember.savingsBalance ?? updatedMember.gsBalance ?? 0 };
         }
         return acc;
@@ -1917,7 +1917,7 @@ export default function BranchManagerDashboard({ org, staff, onLogout, isSimulat
 
       // 2. Sync active CBS Account balance
       setCbsAccounts((prev) => prev.map((acc) => {
-        if (acc.memberId === updatedMember.id || acc.memberCode === updatedMember.memberId) {
+        if (acc.memberId === updatedMember.id || acc.memberId === updatedMember.memberId || acc.memberCode === updatedMember.memberId) {
           return { ...acc, balance: updatedMember.cbsBalance ?? 0 };
         }
         return acc;
@@ -1925,7 +1925,7 @@ export default function BranchManagerDashboard({ org, staff, onLogout, isSimulat
 
       // 3. Sync active LTS Account balance
       setLtsAccounts((prev) => prev.map((acc) => {
-        if (acc.memberId === updatedMember.id || acc.memberCode === updatedMember.memberId) {
+        if (acc.memberId === updatedMember.id || acc.memberId === updatedMember.memberId || acc.memberCode === updatedMember.memberId) {
           return { ...acc, balance: updatedMember.ltsBalance ?? 0 };
         }
         return acc;

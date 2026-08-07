@@ -478,19 +478,19 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
   // Find if there is an existing transaction on the same day for this member of type 'collection'
   const existingTx = transactions.find((t) => 
     t.type === 'collection' && 
-    t.memberId === currentMember?.memberId && 
+    (t.memberId === currentMember?.memberId || t.memberId === currentMember?.id) && 
     t.date === txDate
   );
 
   const activeCbsAccount = currentMember ? cbsAccounts.find(
-    (acc) => (acc.memberId === currentMember.id || acc.memberCode === currentMember.memberId) && acc.status === 'active'
+    (acc) => (acc.memberId === currentMember.id || acc.memberId === currentMember.memberId || acc.memberCode === currentMember.memberId) && acc.status === 'active'
   ) : null;
   const isCbsWeekly = activeCbsAccount?.frequency === 'weekly';
   const isCbsMonthly = activeCbsAccount?.frequency === 'monthly';
 
   // Check if CBS is already deposited in same week/month (excluding today's existing transaction so editing today is allowed)
   const cbsAlreadyDeposited = (transactions || []).some(t => {
-    if (t.memberId !== currentMember?.memberId || Number(t.collections?.cbs || 0) <= 0) return false;
+    if ((t.memberId !== currentMember?.memberId && t.memberId !== currentMember?.id) || Number(t.collections?.cbs || 0) <= 0) return false;
     if (t.date === txDate) return false;
     
     if (isCbsWeekly) {
@@ -717,13 +717,13 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
   const hasGs = (currentGsBalance > 0 || baseGsBalance > 0 || !!activeGsAccount || true);
 
   const mSavings = currentMember ? savingsAccounts.filter(
-    (acc) => (acc.memberId === currentMember.id || acc.memberCode === currentMember.memberId) && acc.status === 'active'
+    (acc) => (acc.memberId === currentMember.id || acc.memberId === currentMember.memberId || acc.memberCode === currentMember.memberId) && acc.status === 'active'
   ) : [];
   const mCbs = currentMember ? cbsAccounts.filter(
-    (acc) => (acc.memberId === currentMember.id || acc.memberCode === currentMember.memberId) && acc.status === 'active'
+    (acc) => (acc.memberId === currentMember.id || acc.memberId === currentMember.memberId || acc.memberCode === currentMember.memberId) && acc.status === 'active'
   ) : [];
   const mLts = currentMember ? ltsAccounts.filter(
-    (acc) => (acc.memberId === currentMember.id || acc.memberCode === currentMember.memberId) && acc.status === 'active'
+    (acc) => (acc.memberId === currentMember.id || acc.memberId === currentMember.memberId || acc.memberCode === currentMember.memberId) && acc.status === 'active'
   ) : [];
 
   const getAccountStatement = (memberObj: any, type: 'PL' | 'GS' | 'CBS' | 'LTS') => {
@@ -1219,17 +1219,10 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
             {hasPl && (
               <div className="space-y-1.5 py-2 border-b border-slate-100">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">PL (ঋণ বকেয়া) - {Math.ceil(Math.max(0, currentPlOutstanding) / (plInstallment || 1))} কিস্তি বাকি</span>
-                  <div className="text-right">
-                    <span className="font-mono text-rose-700 font-extrabold text-[13px]">
-                      ৳ {currentPlOutstanding} <span className="text-slate-400 text-[10.5px] font-medium">/ {plInstallment}</span>
-                    </span>
-                    {colPL > 0 && colPL !== (existingTx?.collections?.pl ?? 0) && (
-                      <span className="block text-[10px] text-emerald-600 font-bold">
-                        (সেভ শেষে হবে: ৳{effectivePlOutstanding})
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-slate-500 font-medium">PL (ঋণ বকেয়া) - {Math.ceil(Math.max(0, plOutstanding) / (plInstallment || 1))} কিস্তি বাকি</span>
+                  <span className="font-mono text-rose-700 font-extrabold text-[13px]">
+                    ৳ {plOutstanding} <span className="text-slate-400 text-[10.5px] font-medium">/ {plInstallment}</span>
+                  </span>
                 </div>
                 {(() => {
                   const status = calculateLoanOverdueAndSchedule(currentMember, transactions, workingDay || '', holidays || [], branchGroups || []);
@@ -1248,46 +1241,25 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
             {hasGs && (
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="text-slate-600 font-extrabold">GS (সাধারণ সঞ্চয়)</span>
-                <div className="text-right">
-                  <span className="font-mono text-[#15803d] font-black text-sm">
-                    ৳ {currentGsBalance} <span className="text-slate-400 text-[10.5px] font-medium">({gsInstallment})</span>
-                  </span>
-                  {(colGS > 0 || wthGS > 0) && (colGS !== (existingTx?.collections?.gs ?? 0) || wthGS !== (existingTx?.withdrawals?.gs ?? 0)) && (
-                    <span className="block text-[10px] text-blue-600 font-bold">
-                      (সেভ শেষে হবে: ৳{effectiveGsBalance})
-                    </span>
-                  )}
-                </div>
+                <span className="font-mono text-[#15803d] font-black text-sm">
+                  ৳ {gsBalance} <span className="text-slate-400 text-[10.5px] font-medium">({gsInstallment})</span>
+                </span>
               </div>
             )}
             {hasCbs && (
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">CBS (ডাবল সঞ্চয়)</span>
-                <div className="text-right">
-                  <span className="font-mono text-emerald-700 font-extrabold text-[13px]">
-                    ৳ {currentCbsBalance} <span className="text-slate-400 text-[10.5px] font-medium">({cbsInstallment})</span>
-                  </span>
-                  {(colCBS_effective > 0 || wthCBS > 0) && (colCBS_effective !== (existingTx?.collections?.cbs ?? 0) || wthCBS !== (existingTx?.withdrawals?.cbs ?? 0)) && (
-                    <span className="block text-[10px] text-blue-600 font-bold">
-                      (সেভ শেষে হবে: ৳{effectiveCbsBalance})
-                    </span>
-                  )}
-                </div>
+                <span className="font-mono text-emerald-700 font-extrabold text-[13px]">
+                  ৳ {cbsBalance} <span className="text-slate-400 text-[10.5px] font-medium">({cbsInstallment})</span>
+                </span>
               </div>
             )}
             {hasLts && (
               <div className="flex justify-between items-center py-2">
                 <span className="text-slate-500 font-medium">LTS {currentMember?.ltsIndex || '1'} (দীর্ঘমেয়াদী)</span>
-                <div className="text-right">
-                  <span className="font-mono text-emerald-700 font-extrabold text-[13px]">
-                    ৳ {currentLtsBalance} <span className="text-slate-400 text-[10.5px] font-medium">({ltsInstallment})</span>
-                  </span>
-                  {colLTS > 0 && colLTS !== (existingTx?.collections?.lts ?? 0) && (
-                    <span className="block text-[10px] text-blue-600 font-bold">
-                      (সেভ শেষে হবে: ৳{effectiveLtsBalance})
-                    </span>
-                  )}
-                </div>
+                <span className="font-mono text-emerald-700 font-extrabold text-[13px]">
+                  ৳ {ltsBalance} <span className="text-slate-400 text-[10.5px] font-medium">({ltsInstallment})</span>
+                </span>
               </div>
             )}
             {!hasPl && !hasCbs && !hasLts && !hasGs && (
@@ -1310,7 +1282,7 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
                 <div className="bg-[#dbeafe]/70 p-2.5 rounded-lg border border-indigo-100 flex items-center justify-between gap-3">
                   <div className="flex flex-col text-slate-700 select-none">
                     <span className="font-extrabold text-indigo-900 text-xs font-sans">PL (ঋণ কিস্তি)</span>
-                    <span className="text-[10px] text-slate-500 font-bold mt-0.5">বকেয়া: ৳{currentPlOutstanding}</span>
+                    <span className="text-[10px] text-slate-500 font-bold mt-0.5">বকেয়া: ৳{plOutstanding}</span>
                   </div>
                   <div className="flex items-center gap-1.5 flex-1 justify-end">
                     <input
@@ -1331,7 +1303,7 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
                 <div className="bg-[#dbeafe]/70 p-2.5 rounded-lg border border-indigo-100 flex items-center justify-between gap-3">
                   <div className="flex flex-col text-slate-700 select-none">
                     <span className="font-extrabold text-indigo-900 text-xs font-sans">GS (সাধারণ সঞ্চয়)</span>
-                    <span className="text-[10px] text-slate-500 font-bold mt-0.5">স্থিতি: ৳{currentGsBalance}</span>
+                    <span className="text-[10px] text-slate-500 font-bold mt-0.5">স্থিতি: ৳{gsBalance}</span>
                   </div>
                   <div className="flex items-center gap-1.5 flex-1 justify-end">
                     <input
@@ -1359,7 +1331,7 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-500 font-bold mt-0.5 font-sans">স্থিতি: ৳{currentCbsBalance} {isCbsWeekly ? '| সাপ্তাহিক' : isCbsMonthly ? '| মাসিক' : ''}</span>
+                    <span className="text-[10px] text-slate-500 font-bold mt-0.5 font-sans">স্থিতি: ৳{cbsBalance} {isCbsWeekly ? '| সাপ্তাহিক' : isCbsMonthly ? '| মাসিক' : ''}</span>
                   </div>
                   <div className="flex items-center gap-1.5 flex-1 justify-end">
                     {cbsAlreadyDeposited ? (
@@ -1387,7 +1359,7 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex flex-col text-slate-700 select-none">
                       <span className="font-extrabold text-indigo-900 text-xs font-sans">LTS (দীর্ঘমেয়াদী)</span>
-                      <span className="text-[10px] text-slate-500 font-bold mt-0.5">স্থিতি: ৳{currentLtsBalance} | মাসিক কিস্তি: ৳{ltsInstallment}</span>
+                      <span className="text-[10px] text-slate-500 font-bold mt-0.5">স্থিতি: ৳{ltsBalance} | মাসিক কিস্তি: ৳{ltsInstallment}</span>
                     </div>
                     <div className="flex items-center gap-1 text-slate-800 font-bold font-mono text-sm border-b-2 border-indigo-400 px-1 bg-white">
                       ৳ <span className="font-black text-slate-900">{ltsCollection}</span>
