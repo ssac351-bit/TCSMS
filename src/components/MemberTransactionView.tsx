@@ -1201,15 +1201,15 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
         {/* 5. ACCOUNT STATUS SECTION */}
         <div className="bg-[#fbfcff] rounded-xl border border-[#cbd5e1] overflow-hidden">
           <div className="bg-[#edf2f9] border-b border-[#cbd5e1] px-3.5 py-2">
-            <h3 className="font-bold text-slate-700 text-xs">Account Status (হিসাব আপডেট স্থিতি)</h3>
+            <h3 className="font-bold text-slate-700 text-xs">Account Status (হিসাব স্থিতি)</h3>
           </div>
           <div className="p-1 px-3.5 text-xs text-slate-800 font-bold">
             {hasPl && (
               <div className="space-y-1.5 py-2 border-b border-slate-100">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">PL (ঋণ বকেয়া) - {Math.ceil(Math.max(0, plOutstanding - colPL) / (plInstallment || 1))} কিস্তি বাকি {colPL > 0 && colPL !== plInstallment ? (colPL < plInstallment ? ' (বকেয়া)' : ' (অগ্রিম)') : ''}</span>
+                  <span className="text-slate-500 font-medium">PL (ঋণ বকেয়া) - {Math.ceil(Math.max(0, plOutstanding) / (plInstallment || 1))} কিস্তি বাকি</span>
                   <span className="font-mono text-rose-700 font-extrabold text-[13px]">
-                    ৳ {Math.max(0, plOutstanding - colPL)} <span className="text-slate-400 text-[10.5px] font-medium">/ {plInstallment}</span>
+                    ৳ {plOutstanding} <span className="text-slate-400 text-[10.5px] font-medium">/ {plInstallment}</span>
                   </span>
                 </div>
                 {(() => {
@@ -1230,7 +1230,7 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="text-slate-600 font-extrabold">GS (সাধারণ সঞ্চয়)</span>
                 <span className="font-mono text-[#15803d] font-black text-sm">
-                  ৳ {gsBalance + colGS - wthGS} <span className="text-slate-400 text-[10.5px] font-medium">({gsInstallment})</span>
+                  ৳ {gsBalance} <span className="text-slate-400 text-[10.5px] font-medium">({gsInstallment})</span>
                 </span>
               </div>
             )}
@@ -1238,7 +1238,7 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">CBS (ডাবল সঞ্চয়)</span>
                 <span className="font-mono text-emerald-700 font-extrabold text-[13px]">
-                  ৳ {cbsBalance + colCBS_effective - wthCBS} <span className="text-slate-400 text-[10.5px] font-medium">({cbsInstallment})</span>
+                  ৳ {cbsBalance} <span className="text-slate-400 text-[10.5px] font-medium">({cbsInstallment})</span>
                 </span>
               </div>
             )}
@@ -1246,7 +1246,7 @@ export const MemberTransactionView: React.FC<MemberTransactionViewProps> = ({
               <div className="flex justify-between items-center py-2">
                 <span className="text-slate-500 font-medium">LTS {currentMember?.ltsIndex || '1'} (দীর্ঘমেয়াদী)</span>
                 <span className="font-mono text-emerald-700 font-extrabold text-[13px]">
-                  ৳ {ltsBalance + colLTS} <span className="text-slate-400 text-[10.5px] font-medium">({ltsInstallment})</span>
+                  ৳ {ltsBalance} <span className="text-slate-400 text-[10.5px] font-medium">({ltsInstallment})</span>
                 </span>
               </div>
             )}
